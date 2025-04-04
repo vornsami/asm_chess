@@ -148,13 +148,19 @@ makeMoveOnBoard:
 
     finishMove:
         movzx r10, BYTE [r11+boardSize +rbx+PIECE.type]
-        ; if king, write the position up
+        ; if king, do special checks
         cmp r10, TypeKing
-        jne continueFinishMove
+        je makemove_castle_check
+        
+        ; if pawn, check for upgrades
+        cmp r10, TypePawn
+        je makemove_pawn_upgrade_check
 
-        mov BYTE [r11 + boardSize + pieceData + r9], r8b
+        jmp continueFinishMove
 
         makemove_castle_check:
+            ; if king, write the position up
+            mov BYTE [r11 + boardSize + pieceData + r9], r8b
             cmp rdx, r8
             jl makemove_castle_check_right
             makemove_castle_check_left:
@@ -185,6 +191,21 @@ makeMoveOnBoard:
                 sub r8, 1
                 call makeMoveOnBoard
                 popRegisters rax, rbx, rcx, rdx, r8, r9, r10, r11, r12
+                jmp continueFinishMove
+        makemove_pawn_upgrade_check:
+
+            cmp r9, whitePiece
+            jne makemove_pawn_upgrade_check_black
+            makemove_pawn_upgrade_check_white:
+                cmp r8, 56
+                jl continueFinishMove
+                mov BYTE [r11+boardSize +rbx+PIECE.type], TypeQueen
+                jmp continueFinishMove
+            makemove_pawn_upgrade_check_black:
+                cmp r8, 8
+                jge continueFinishMove
+                mov BYTE [r11+boardSize +rbx+PIECE.type], TypeQueen
+                jmp continueFinishMove
 
     continueFinishMove:
         ;Set the target tile to have the piece id
@@ -1080,8 +1101,7 @@ isTileAttacked:
             cmp r12, TypePawn
             jne attacked_downLeft_checkAttacker
             ;if pawn, check attack direction
-            movzx rdx, BYTE [rcx + boardSize + rax + PIECE.owner]
-            cmp rdx, whitePiece
+            cmp r8, blackPiece
             jne attacked_downRight
 
         attacked_downLeft_checkAttacker:
@@ -1136,8 +1156,7 @@ isTileAttacked:
             cmp r12, TypePawn
             jne attacked_downRight_checkAttacker
             ;if pawn, check attack direction
-            movzx rdx, BYTE [rcx + boardSize + rax + PIECE.owner]
-            cmp rdx, whitePiece
+            cmp r8, blackPiece
             jne attacked_upLeft
 
         attacked_downRight_checkAttacker:
@@ -1191,8 +1210,7 @@ isTileAttacked:
             cmp r12, TypePawn
             jne attacked_upLeft_checkAttacker
             ;if pawn, check attack direction
-            movzx rdx, BYTE [rcx + boardSize + rax + PIECE.owner]
-            cmp rdx, blackPiece
+            cmp r8, whitePiece
             jne attacked_upRight
 
         attacked_upLeft_checkAttacker:
@@ -1246,8 +1264,7 @@ isTileAttacked:
             cmp r12, TypePawn
             jne attacked_upRight_checkAttacker
             ;if pawn, check attack direction
-            movzx rdx, BYTE [rcx + boardSize + rax + PIECE.owner]
-            cmp rdx, whitePiece
+            cmp r8, whitePiece
             jne attacked_end
 
         attacked_upRight_checkAttacker:
